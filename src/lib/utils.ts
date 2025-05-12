@@ -19,3 +19,27 @@ export function readingTime(html: string) {
   const readingTimeMinutes = (wordCount / 200 + 1).toFixed();
   return `${readingTimeMinutes} min read`;
 }
+
+const base = stripTrailingSlash(import.meta.env.BASE_URL)
+
+export function getPathWithBase(path: string) {
+  path = stripLeadingSlash(path)
+
+  return path ? `${base}/${path}` : `${base}/`
+}
+
+function stripLeadingSlash(path: string) {
+  if (!path.startsWith('/')) {
+    return path
+  }
+
+  return path.slice(1)
+}
+
+function stripTrailingSlash(path: string) {
+  if (!path.endsWith('/')) {
+    return path
+  }
+
+  return path.slice(0, -1)
+}

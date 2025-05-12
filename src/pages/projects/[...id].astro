@@ -7,6 +7,7 @@ import { readingTime } from "@lib/utils";
 import BackToPrevious from "@components/BackToPrevious.astro";
 import Link from "@components/Link.astro";
 import TableOfContents from "@components/TableOfContents.astro";
+import { getPathWithBase } from "@lib/utils";
 
 export async function getStaticPaths() {
   const projects = (await getCollection("projects"))
@@ -26,7 +27,7 @@ const { Content, headings } = await render(project);
 <Layout title={project.data.title} description={project.data.description}>
   <Container>
     <div class="animate">
-      <BackToPrevious href=`${import.meta.env.BASE_URL}/projects`>Back to projects</BackToPrevious>
+      <BackToPrevious href={getPathWithBase("/projects")}>Back to projects</BackToPrevious>
     </div>
     <div class="animate my-10 space-y-1">
       <div class="flex items-center gap-1.5">

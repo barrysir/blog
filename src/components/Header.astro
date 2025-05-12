@@ -1,13 +1,15 @@
 ---
 import Container from "@components/Container.astro";
 import Link from "@components/Link.astro";
+import { getPathWithBase } from "@lib/utils";
 import { SITE } from "@consts";
+
 ---
 
 <header transition:persist>
   <Container>
     <div class="flex flex-wrap justify-between gap-y-2">
-      <Link href=`${import.meta.env.BASE_URL}/` underline={false}>
+      <Link href={getPathWithBase("/")} underline={false}>
         <div class="font-semibold">
           {SITE.TITLE}
         </div>

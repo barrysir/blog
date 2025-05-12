@@ -4,6 +4,7 @@ import Layout from "@layouts/Layout.astro";
 import Container from "@components/Container.astro";
 import ArrowCard from "@components/ArrowCard.astro";
 import BackToPrevious from "@components/BackToPrevious.astro";
+import { getPathWithBase } from "@lib/utils";
 
 export async function getStaticPaths() {
   const posts = await getCollection("blog", ({ data }) => !data.draft);
@@ -32,7 +33,7 @@ const sortedPosts = posts.sort(
 <Layout title={`Tag: ${id}`} description={`Posts with the tag: ${id}`}>
   <Container>
     <div class="space-y-10" data-pagefind-ignore>
-      <BackToPrevious href=`${import.meta.env.BASE_URL}/tags`> All tags </BackToPrevious>
+      <BackToPrevious href={getPathWithBase("/tags")}> All tags </BackToPrevious>
       <h1 class="animate font-semibold text-black dark:text-white">
         Posts tagged with "{id}"
       </h1>
