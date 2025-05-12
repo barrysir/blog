@@ -3,6 +3,8 @@ import sitemap from "@astrojs/sitemap";
 import mdx from "@astrojs/mdx";
 import pagefind from "astro-pagefind";
 import tailwindcss from "@tailwindcss/vite";
+import rehypeKatex from 'rehype-katex';
+import remarkMath from 'remark-math';
 
 // https://astro.build/config
 export default defineConfig({
@@ -13,6 +15,8 @@ export default defineConfig({
     plugins: [tailwindcss()],
   },
   markdown: {
+    rehypePlugins: [rehypeKatex],
+    remarkPlugins: [remarkMath],
     shikiConfig: {
       theme: "css-variables",
     },
