@@ -3,7 +3,12 @@ title: "Piecewises using only conventional functions"
 description: "Piecewises using only conventional functions"
 date: "2020-06-20"
 ---
-## asdf
+
+import Callout from "@/components/Callout.astro";
+
+---
+
+## Article
 
 ### Summary
 
@@ -25,26 +30,36 @@ $$
 
 Using it we can create the [boxcar function](https://en.wikipedia.org/wiki/Boxcar_function), which is only equal to 1 over a certain interval:
 
-$B_{a,b}(x) = H(x-a) - H(x-b) = \begin{cases} 0, & x < a \\ 1, & x = a \\ 1, & a < x < b \\ 0, & x = b \\ 0, & x > b \end{cases}$
+$$
+B_{a,b}(x) = H(x-a) - H(x-b) = \begin{cases} 0, & x < a \\ 1, & x = a \\ 1, & a < x < b \\ 0, & x = b \\ 0, & x > b \end{cases}
+$$
 
 (We can also create boxcar functions which go off to infinity:)
 
-$B_{-\infty,b}(x) = H(x+\infty) - H(x-b) = 1 - H(x-b)$ \
-$B_{a,\infty}(x) = H(x-a) - H(x-\infty) = H(x-a) - 0$
+$$
+B_{-\infty,b}(x) = H(x+\infty) - H(x-b) = 1 - H(x-b) \\
+B_{a,\infty}(x) = H(x-a) - H(x-\infty) = H(x-a) - 0
+$$
 
 (and similar functions exist which include/exclude the endpoints, though we don't have to worry about it for this example). Then we take our piecewise function and split it into parts:
 
-$f(x)=\begin{cases} f_1(x) = 2(x+1), & x < -1 \\ f_2(x) = x^2-1, & -1 \leq x \leq 2 \\ f_3(x) = 3, & x > 2 \end{cases}$
+$$
+f(x)=\begin{cases} f_1(x) = 2(x+1), & x < -1 \\ f_2(x) = x^2-1, & -1 \leq x \leq 2 \\ f_3(x) = 3, & x > 2 \end{cases}
+$$
 
 And we multiply each part by the boxcar function over its interval:
 
-$f(x) = f_1(x) B_{-\infty,-1}(x) + f_2(x)B_{-1,2}(x) + f_3(x)B_{2,\infty}(x)$
+$$
+f(x) = f_1(x) B_{-\infty,-1}(x) + f_2(x)B_{-1,2}(x) + f_3(x)B_{2,\infty}(x)
+$$
 
 Simplifying gives the final equation:
 
-$$f(x) = \textcolor{green}{2(x+1)(1 - H(x+1))} + \textcolor{blue}{(x^2-1)(H(x+1) - H(x-2))} + \textcolor{purple}{3H(x-2)}$$
+$$
+f(x) = \textcolor{green}{2(x+1)(1 - H(x+1))} + \textcolor{blue}{(x^2-1)(H(x+1) - H(x-2))} + \textcolor{purple}{3H(x-2)}
+$$
 
-<center><img src="/blog/assets/continuous-piecewise/heaviside.png" alt="graph of f(x)" width="50%" /></center>
+<center>![graph of f(x)|50%](./heaviside.png)</center>
 
 The colours show how the function is made up of **slice functions** which contain each of the component functions over a certain interval. Our approach will be to create something like these slice functions, without using weird functions like the Heaviside step function.
 
@@ -59,7 +74,7 @@ Therefore only slice functions that match up in this way $s_1: a\rightarrow b$, 
 However, this doesn't say anything about the actual function piece, which can jump from $a$ to wherever it needs to go, then connect/jump back to $b$ when finished, so long as we're able to represent such a slice function within our constraints. I'll only consider continuous slices for now to keep things simple.
 
 <figure>
-<img src="/blog/assets/continuous-piecewise/part2.png" width="50%" />
+![|50%](./part2.png)
 <figcaption>An example of a continuous slice, and another slice which jumps around.</figcaption>
 </figure>
 
@@ -71,11 +86,15 @@ So we can join together constant slices by doing the following:
 
 I ended up looking at the absolute value for two reasons. First, you can make this almost step function:
 
-$\frac{|x|}{x} = \begin{cases} -1, & x < 0 \\ undefined & x = 0 \\ 1 & x > 0 \end{cases}$
+$$
+\frac{|x|}{x} = \begin{cases} -1, & x < 0 \\ undefined & x = 0 \\ 1 & x > 0 \end{cases}
+$$
 
 Second, you can write it entirely out of "conventional" functions:
 
-$|x| = \sqrt{x^2}$
+$$
+|x| = \sqrt{x^2}
+$$
 
 That makes it a prime candidate for this problem.
 
@@ -83,21 +102,26 @@ That makes it a prime candidate for this problem.
 
 After playing around with the absolute value function a bit, I found two functions which proved to be useful. The **ramp function** is a function which is constant on one end, and a line on the other:
 
-$R(x) = \frac{1}{2}(x + |x|) = \begin{cases} 0, & x<0 \\ x, & x \geq 0 \end{cases}$
+$$
+R(x) = \frac{1}{2}(x + |x|) = \begin{cases} 0, & x<0 \\ x, & x \geq 0 \end{cases}
+$$
  * when $x<0$, the $x$ and $|x|$ cancel each other out.
  * when $x>0$, they add together to make a line of slope 2, so we divide by 2 to normalize the line's slope to 1.
   
 And by staggering two ramp functions, we can create something I call the **incline function**, which is constant on both ends.
 
-$I(x) = R(x) - R(x-1) = \frac{1}{2}(|x| - |x-1| + 1) = \begin{cases} 0, & x<0 \\ x, & 0 \leq x \leq 1 \\ 1, & x > 1 \end{cases}$
+$$
+I(x) = R(x) - R(x-1) = \frac{1}{2}(|x| - |x-1| + 1) = \begin{cases} 0, & x<0 \\ x, & 0 \leq x \leq 1 \\ 1, & x > 1 \end{cases}
+$$
 
  * when $x<0$, both ramps are 0 so the result is 0.
  * when $0\leq x \leq 1$, one ramp function is increasing while the other stays flat, creating a line.
  * when $x>1$, the ramp functions cancel each other out, keeping it constant.
 
-<figure>
-<img style="float:left; margin-right:2%;" src="/blog/assets/continuous-piecewise/ramp.png" width="49%" alt="A graph of the ramp function" /><img style="float:left" src="/blog/assets/continuous-piecewise/incline.png" width="49%" alt="A graph of the incline function" />
-</figure>
+<div style="display: grid; grid-template-columns: 1fr 1fr; column-gap: 5px;">
+    <div>![A graph of the ramp function](./ramp.png) </div>
+    <div>![A graph of the incline function](./incline.png)</div>
+</div>
 
 This form of the incline function generates a line segment from (0,0) to (1,1). Through translation and scaling we can create incline functions from any points (a,b) to (c,d):
  * Incline from (0,0) to (1,1) = $I(x)$
@@ -118,11 +142,15 @@ Surprisingly (dissapointingly) it's only one easy trick from the incline functio
 
 To motivate it a bit, say we did have a slice of $f(x)$ from $[a,b]$. For this function to be continuous and flat on both ends, it would have to remain at $f(a)$ for $x < a$, and at $f(b)$ for $x > b$. 
 
-$\begin{cases} f(a), & x < a \\ f(x), & a \leq x \leq b \\ f(b), &  b < x\end{cases}$
+$$
+\begin{cases} f(a), & x < a \\ f(x), & a \leq x \leq b \\ f(b), &  b < x\end{cases}
+$$
 
 But the value plugged into $f(x)$ looks suspiciously like an incline function -- and if we set $I(x)$ to be the incline function from (a,a) to (b,b) and plug it into $f(x)$, we get the function we want:
 
-$f(I(x)) = \begin{cases} f(a), & x < a \\ f(x), & a \leq x \leq b \\ f(b), &  b < x\end{cases}$
+$$
+f(I(x)) = \begin{cases} f(a), & x < a \\ f(x), & a \leq x \leq b \\ f(b), &  b < x\end{cases}
+$$
 
 If $a = -\infty$, we would use a left ramp around (b,b) with slope 1. \
 If $b = \infty$, we would use a right ramp around (a,a) with slope 1. \
@@ -132,7 +160,9 @@ If both are infinity, then just use $y=x$ (nothing gets changed).
 
 Let's try the same function from the Heaviside example:
 
-$f(x)=\begin{cases} f_1(x) = 2(x+1), & x < -1 \\ f_2(x) = x^2-1, & -1 \leq x \leq 2 \\ f_3(x) = 3, & x > 2 \end{cases}$
+$$
+f(x)=\begin{cases} f_1(x) = 2(x+1), & x < -1 \\ f_2(x) = x^2-1, & -1 \leq x \leq 2 \\ f_3(x) = 3, & x > 2 \end{cases}
+$$
 
 Create our inclines:
  * $I_1(x)$ = Left ramp around (-1,-1) with slope 1 = $\frac{x}{2} - \frac{\left|{x + 1}\right|}{2} - \frac{1}{2}$
@@ -152,7 +182,10 @@ For fun, rewriting the absolute values using square roots:
 * $f(x) = x - \sqrt{(x + 1)^2} + \frac{1}{4}\left(- \sqrt{(x - 2)^2} + \sqrt{(x+1)^2} + 1\right)^{2}$
 
 <figure>
-<img style="width:50%" alt="Graph of $f(x) = x - \sqrt{(x + 1)^2} + \frac{1}{4}\left(- \sqrt{(x - 2)^2} + \sqrt{(x+1)^2} + 1\right)^{2}$" src="/blog/assets/continuous-piecewise/example.png" />
+![](./example.png)
+<figcaption>
+Graph of $f(x) = x - \sqrt{(x + 1)^2} + \frac{1}{4}\left(- \sqrt{(x - 2)^2} + \sqrt{(x+1)^2} + 1\right)^{2}$
+</figcaption>
 </figure>
 
 Success!
@@ -165,7 +198,10 @@ So far we've only been working with continuous piecewise functions, but is it al
 
 The way we construct our slices from functions will allow for discontinuities within the function (for example, we can construct a slice of $\frac{1}{x}$ on $[-1,1]$). However I don't think it's possible to have jump discontinuities between the pieces, for the following reason:
 
-> Say we had a function $s(x)$ with 1 or more of these discontinuities, and there was a way to write it under our constraints. We can remove all of the discontinuities by shifting the pieces around to get $\bar{s}(x)$. $\bar{s}(x)$ now has no discontinuities between its pieces, so we can use our algorithm to find an equation for it. But now consider $s(x) - \bar{s}(x)$. This would be some sort of step function, and we would have just found a representation of it following our constraints. I don't know how to prove that such a representation doesn't exist, but I can't find any evidence saying that it does, leading me to believe that it's impossible.
+<Callout>
+Say we had a function $s(x)$ with 1 or more of these discontinuities, and there was a way to write it under our constraints. We can remove all of the discontinuities by shifting the pieces around to get $\bar{s}(x)$. $\bar{s}(x)$ now has no discontinuities between its pieces, so we can use our algorithm to find an equation for it. But now consider $s(x) - \bar{s}(x)$. This would be some sort of step function, and we would have just found a representation of it following our constraints. I don't know how to prove that such a representation doesn't exist, but I can't find any evidence saying that it does, leading me to believe that it's impossible.
+</Callout>
+
 
 Unless there is a function with a naturally occuring jump discontinuity, I don't believe it's possible to create piecewises containing jump discontinuities using this method.
 
@@ -173,7 +209,9 @@ Unless there is a function with a naturally occuring jump discontinuity, I don't
 
 We can create slices which are undefined over a certain interval by leveraging the function $\sqrt{(x-b)(x-c)}$, which is undefined between $b < x < c$ and 0 at $x=b,c$. Slicing it between $[b,c]$ gives us
 
-$\text{Slice}(\sqrt{(x-b)(x-c)}, b, c) = \begin{cases} 0, & x \leq b \\ undefined, & b < x < c \\ 0, & x \geq c \end{cases}$
+$$
+\text{Slice}(\sqrt{(x-b)(x-c)}, b, c) = \begin{cases} 0, & x \leq b \\ undefined, & b < x < c \\ 0, & x \geq c \end{cases}
+$$
 
 Running this through our algorithm above and simplifying, we can nicely write this as
 $$\sqrt{(x-b)^2 + (x-c)^2 -2|(x-b)(x-c)| - (b-c)^2}$$
@@ -188,31 +226,30 @@ After searching around I found a couple of interesting functions:
  * $\sin^{-1}(\sin(x))$ is a linear function which oscillates between $[-\frac{\pi}{2}, \frac{\pi}{2}]$ with period $2\pi$. This is actually listed on the Wikipedia article for [triangle waves](https://en.wikipedia.org/wiki/Triangle_wave). $\cos^{-1}(\cos(x))$ is similar, oscillating between $[0, \pi]$ instead.
  * The wikipedia page for [sawtooth waves](https://en.wikipedia.org/wiki/Sawtooth_wave) also lists the function $\tan^{-1}(\cot(x))$. However this function is undefined at each multiple of $\frac{\pi}{2}$, so it doesn't work well enough for our purposes.
 
-<figure>
-<img style="float:left; margin-right:2%;" src="/blog/assets/continuous-piecewise/asin.png" width="49%" alt="A graph of asin(sin(x))" /><img style="float:left" src="/blog/assets/continuous-piecewise/atan.png" width="49%" alt="A graph of atan(tan(x))" />
-</figure>
+<div style="display: grid; grid-template-columns: 1fr 1fr; column-gap: 5px;">
+    <div>![A graph of asin(sin(x))](./asin.png) </div>
+    <div>![A graph of atan(tan(x))](./atan.png)</div>
+</div>
 
 Ideally we'd like a sawtooth shape for our periodic functions, but I can't find one and I have a hunch that there isn't one based on the problems encountered with discontinuities. As far as I know there are no other elementary periodic functions besides the trigonometric ones, so any search for more periodic functions would have to involve a trigonometric term. Combining two continuous functions (+, -, x, / by nonzero, composition) will always gives you a continuous function, so a discontinuous function would also have to be involved (sqrt, log, 1/x, tan, asin, acos).
 
 For now, we can only make oscillating periodic functions. By exchanging $x$ with $\sin^{-1}(\sin(x))$ and performing some other transformations, we can make an oscillating version of $f(x)$, where $[a,b]$ within $f(x)$ gets mapped to $[c,d]$ in the output (see the source code for details).
 
 <figure>
-<img src="/blog/assets/continuous-piecewise/periodic1.png" width="50%" />
+![](./periodic1.png)
 <figcaption>x^3 oscillated over [-2,2]</figcaption>
 </figure>
 
 ## Conclusion
 
-I'm sorry
-
 <figure>
-<img src="/blog/assets/continuous-piecewise/uwu.png" width="50%" alt="uwu" />
-<figcaption>f(x) = abs(112*abs(x) - 7*abs(16*abs(x) - 13) + 13)/78 - 545/192 + 3179/(64*(-512*x^2 + 1536*abs(x) + 512*abs((abs(x) - 2)*(abs(x) - 1)) - 991))</figcaption>
+![uwu](./uwu.png)
+<figcaption>`f(x) = abs(112*abs(x) - 7*abs(16*abs(x) - 13) + 13)/78 - 545/192 + 3179/(64*(-512*x^2 + 1536*abs(x) + 512*abs((abs(x) - 2)*(abs(x) - 1)) - 991))`</figcaption>
 </figure>
 
 <figure>
-<img src="/blog/assets/continuous-piecewise/uwu_periodic.png" width="50%" alt="uwu uwu uwu uwu uwu" />
-<figcaption>f(x) = abs(1932*abs(acos(cos(pi*(20*x/69 + 1))) - pi) - 7*abs(276*acos(cos(pi*(20*x/69 + 1))) - 211*pi) + 65*pi)/(390*pi) - 545/192 + 79475*pi^2/(-1024*(69*acos(-cos(20*pi*x/69)) - 49*pi)^2 - 1024*(69*acos(-cos(20*pi*x/69)) - 29*pi)^2 + 2048*abs((69*acos(-cos(20*pi*x/69)) - 49*pi)*(69*acos(-cos(20*pi*x/69)) - 29*pi)) + 462400*pi^2)</figcaption>
+![uwu uwu uwu uwu uwu](./uwu_periodic.png)
+<figcaption>`f(x) = abs(1932*abs(acos(cos(pi*(20*x/69 + 1))) - pi) - 7*abs(276*acos(cos(pi*(20*x/69 + 1))) - 211*pi) + 65*pi)/(390*pi) - 545/192 + 79475*pi^2/(-1024*(69*acos(-cos(20*pi*x/69)) - 49*pi)^2 - 1024*(69*acos(-cos(20*pi*x/69)) - 29*pi)^2 + 2048*abs((69*acos(-cos(20*pi*x/69)) - 49*pi)*(69*acos(-cos(20*pi*x/69)) - 29*pi)) + 462400*pi^2)`</figcaption>
 </figure>
 
 Thanks for reading!
