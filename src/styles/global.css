@@ -70,6 +70,13 @@
     @apply prose prose-neutral max-w-full dark:prose-invert prose-img:mx-auto prose-img:my-auto;
     @apply prose-headings:font-semibold;
     @apply prose-headings:text-black dark:prose-headings:text-white;
+
+    /* Disable adding quote marks to code: https://github.com/tailwindlabs/tailwindcss-typography/issues/66 
+       (not an exact copy of the issue but where I got the fix idea from) */
+    :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *))::after,
+    :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *))::before {
+      content: none;
+    }
   }
 }
 
