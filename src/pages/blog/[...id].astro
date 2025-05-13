@@ -53,6 +53,11 @@ const { Content, headings } = await render(post);
 ---
 
 <Layout title={post.data.title} description={post.data.description}>
+  <style is:global>
+    figcaption {
+      text-align: center;
+    }
+  </style>
   <Container>
     <div class="animate">
       <BackToPrevious href={getPathWithBase("/blog")}>Back to blog</BackToPrevious>
