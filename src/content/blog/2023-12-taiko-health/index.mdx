@@ -89,12 +89,12 @@ For the math, here's some shared variables used for all of these:
 
 ### Greens are NOT enough to pass maps at certain HPs
 
+<details>
 It turns out that at HP 5 and above, it's not possible to hit all greens and pass[<sup>[*]</sup>](#green-note). The exact number is at HP 1610/323 ~ 4.985. This number comes from solving `G >= 100`.
 
 <a id="green-note"></a><sup>*</sup> - depends on big notes and other things, since they give extra health. It may still be possible with enough big notes.
 
 You need a minimum ratio of 1 yellow : `(Y-100)/(100-G)` greens to pass ([solving 1/(r+1)*Y + r/(r+1)*G = 100](https://www.wolframalpha.com/input?i=solve+1%2F%28r%2B1%29*y+%2B+r%2F%28r%2B1%29*g+%3D+100+for+r)). Some values for this are given below and their corresponding accuracies. Note this ratio is inverted so you'll pretty much never going to have bad enough accuracy to run into this, unless you're trying.
-
 
 ```
 | HP   | Ratio 1:G | Accuracy |
@@ -121,8 +121,12 @@ You need a minimum ratio of 1 yellow : `(Y-100)/(100-G)` greens to pass ([solvin
 | 9.5  | 4.663     | 58.8     |
 | 10.0 | 4.135     | 59.7     |
 ```
+</details>
 
-### How much does each judgement "cost" / how many greens are equivalent to a miss?
+
+### How many greens are equivalent to a miss?
+
+<details>
 You have a theoretical maximum amount of health that can be gathered throughout a map and each green/miss costs you some theoretical health. We can use this to compare how much each judgement costs relative to each other.
 
 
@@ -159,8 +163,11 @@ For low HPs, T will end up being negative, which means that T greens will instea
 | 9.5  | N/57.298    + 1.579 | 19.032   | 36.484   |
 | 10.0 | N/53.855    + 1.579 | 20.147   | 38.716   |
 ```
+</details>
 
 ### How many greens/yellows will offset 1 miss worth of damage?
+
+<details>
 A yellow heals `Y/N` health while a miss takes away `M` health, so the number of yellows `t` equivalent to the health from 1 miss is `Y/N * t = M`. The same goes for all greens `G/N * t = M` or some accuracy ratio of yellow:green `(r/(r+1) * Y + 1/(r+1) * G)/N * t = M`.
 
 Here's a table for N = 1000 notes of the number of notes needed at certain accuracies. For any other note count, turns out the relationship is linear so you can just multiply the table values by (your note count) / 1000.
@@ -191,9 +198,11 @@ Here's a table for N = 1000 notes of the number of notes needed at certain accur
 | 9.5  | 11.053          | 30.146         | 11.729 | 11.397 |
 | 10.0 | 11.76           | 32.073         | 12.478 | 12.126 |
 ```
+</details>
 
 ### How many misses can you get and still pass at a given HP?
 
+<details>
 (Assuming health never drops to 0. If it does then it's the same thing but with fewer notes to work with.)
 
 Here are some interesting scenarios and corresponding equations. The equations essentially assign a certain number of misses, then distribute the remaining notes across yellow and green.
@@ -266,8 +275,11 @@ Here's a table of values for certain note counts and accuracy ratios. Depending 
 | 9.5 | 45.138     | -9.953    | 40.255  | 42.584  |
 | 10  | 41.599     | -10.327   | 36.989  | 39.187  |
 ```
+</details>
 
 ### How far into a map can you not play (drop to 0 health) and still pass?
+
+<details>
 This is the same as asking "How long does it take to gather 50% health?", since you don't play for most of the map, then heal 50% at the end.
 
 `Y` (`G` at low HPs) is the maximum health achievable throughout a map, so `100/Y` gives the percentage of map necessary to gather 100 health (50% of the health bar). `1 - 100/Y` gives the percentage of map you can ignore.
@@ -308,5 +320,4 @@ Again this depends on big notes, any big notes hit will let you heal more health
 | 9.5  | 0.522      | -0.305    | 0.522   | 0.492 | 0.507 |
 | 10.0 | 0.51       | -0.336    | 0.51    | 0.48  | 0.495 |
 ```
-
-[/box]
+</details>
