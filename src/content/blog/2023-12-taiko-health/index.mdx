@@ -48,8 +48,8 @@ def health(x, y, g, m, total, big_y=0, big_g=0, missed_spinners=0, slider_ticks=
 
 How health works:
 
-- Hitting a note gives health (scaled). This is scaled over the number of notes in the map [^1](#note1), so each note heals proportionally less on longer maps.
-- Missing a note loses health (fixed). This is NOT scaled over the number of notes in the map [^1](#note1), making misses proportionally more punishing on longer maps.
+- Hitting a note gives health (scaled). This is scaled over the number of notes in the map[<sup>[1]</sup>](#note1), so each note heals proportionally less on longer maps.
+- Missing a note loses health (fixed). This is NOT scaled over the number of notes in the map, making misses proportionally more punishing on longer maps.
 - Dropping a spinner also loses health (fixed), roughly 0.6 times the value of a miss (depending on HP drain). Partially completed spinners still count as dropped spinners and lose the same amount of health -- no reduction is given for partially finishing a spinner. Completing a spinner does not give health.
 - Greens (the 'good' judgement) give less health than yellows (the 'perfect' judgement). Greens generally give about 1/3 of the health of a yellow.
   - Greens actually give MORE health than yellows at low HPs. See below for details.
@@ -64,7 +64,7 @@ How HP drain works:
 - HR multiplies the HP value by 1.4, capped at HP 10.
 - EZ multiplies the HP value by 0.5.
 
-<a name="note1">[^1]</a>: "Number of notes in the map" is counted as literally the number of note objects in the map, which is listed as "Circles" in the song stats.
+<a id="note1"></a><sup>[1]</sup> - "Number of notes in the map" is counted as literally the number of note objects in the map, which is listed as "Circles" in the song stats.
 
 ![](https://i.postimg.cc/28sxXcrQ/image.png)
 
@@ -89,9 +89,9 @@ For the math, here's some shared variables used for all of these:
 
 ### Greens are NOT enough to pass maps at certain HPs
 
-It turns out that at HP 5 and above, it's not possible to hit all greens and pass*. The exact number is at HP 1610/323 ~ 4.985. This number comes from solving `G >= 100`.
+It turns out that at HP 5 and above, it's not possible to hit all greens and pass[<sup>[*]</sup>](#green-note). The exact number is at HP 1610/323 ~ 4.985. This number comes from solving `G >= 100`.
 
-* - depends on big notes and other things, since they give extra health. It may still be possible with enough big notes.
+<a id="green-note"></a><sup>*</sup> - depends on big notes and other things, since they give extra health. It may still be possible with enough big notes.
 
 You need a minimum ratio of 1 yellow : `(Y-100)/(100-G)` greens to pass ([solving 1/(r+1)*Y + r/(r+1)*G = 100](https://www.wolframalpha.com/input?i=solve+1%2F%28r%2B1%29*y+%2B+r%2F%28r%2B1%29*g+%3D+100+for+r)). Some values for this are given below and their corresponding accuracies. Note this ratio is inverted so you'll pretty much never going to have bad enough accuracy to run into this, unless you're trying.
 
