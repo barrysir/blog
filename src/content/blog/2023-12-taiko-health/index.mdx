@@ -1,0 +1,312 @@
+---
+title: "osu!taiko: Health Mechanics"
+description: "Details on how HP works in osu!taiko"
+date: "2023-12-14"
+---
+
+import Callout from "@/components/Callout.astro";
+
+---
+
+Also posted on the osu! forums: [https://osu.ppy.sh/community/forums/topics/1857309](https://osu.ppy.sh/community/forums/topics/1857309)
+
+Hi I'm back, this time with some information about how the health bar works.
+
+To gather data I used gosumemory to read the value of the health bar in memory and did some reverse engineering off of that.
+
+## Mechanics
+
+Here's some code which should fully simulate the health bar. The value ranges from 0 to 200, with >= 100 being passing.
+
+
+```python
+# Two-part linear interpolation: (0,a) -- (5,b) -- (10,c)
+osu_lerp = lambda a,b,c: (lambda x: a+(b-a)*x/5 if x<=5 else b+(c-b)*(x-5)/5)
+
+mult = osu_lerp(0.5, 0.75, 0.98)
+spinner = osu_lerp(0.24, 0.9, 1.68)
+miss = osu_lerp(0.36, 1.5, 2.4)
+yellow = lambda x: 200/mult(x)
+_green = osu_lerp(88/30, 11/30, 11/30)
+green = lambda x: yellow(x) * _green(x)
+slider = 0.000006
+
+def health(x, y, g, m, total, big_y=0, big_g=0, missed_spinners=0, slider_ticks=0):
+    # health, assuming life never went to 0 after beginning
+    # value ranges from 0 to 200, >= 100 is passing
+    # big_y, big_g: how many big notes that were hit with 2 keypresses.
+    #    enter a big note as both 1 in y and 1 in big_y
+    # total is the number of note objects (circles) in the map
+    return (
+        ((y + big_y) * yellow(x) + (b + big_g) * green(x)) / total
+        - m * miss(x)
+        - missed_spinners * spinner(x)
+        + slider_ticks * slider
+    )
+```
+
+
+How health works:
+
+- Hitting a note gives health (scaled). This is scaled over the number of notes in the map [^1](#note1), so each note heals proportionally less on longer maps.
+- Missing a note loses health (fixed). This is NOT scaled over the number of notes in the map [^1](#note1), making misses proportionally more punishing on longer maps.
+- Dropping a spinner also loses health (fixed), roughly 0.6 times the value of a miss (depending on HP drain). Partially completed spinners still count as dropped spinners and lose the same amount of health -- no reduction is given for partially finishing a spinner. Completing a spinner does not give health.
+- Greens (the 'good' judgement) give less health than yellows (the 'perfect' judgement). Greens generally give about 1/3 of the health of a yellow.
+  - Greens actually give MORE health than yellows at low HPs. See below for details.
+- Hitting a big note with 2 keypresses gives double health -- either two yellows or two greens' worth. Hitting a big note with 1 keypress only gives a single note's worth of health. Missing a big note still only counts as 1 miss.
+  - Auto only receives 1 note worth of health from big notes for some reason -- this might highlight an edge case where pressing at the exact same frame only heals 1 note but I'm not sure.
+- Slider ticks give an extremely tiny amount of health (fixed). This amount is so tiny that it basically doesn't exist, on the order of 10000 slider ticks = 1 yellow (11904 for an map at HP 4 with 1000 notes.)
+- The health bar doesn't keep going below 0% or above 100% -- there's no underflow or overflow mechanic.
+
+How HP drain works:
+
+- Higher HPs make notes heal less, misses/spinners hurt more, and greens heal less relative to yellows (up to a cap at HP 5).
+- HR multiplies the HP value by 1.4, capped at HP 10.
+- EZ multiplies the HP value by 0.5.
+
+<a name="note1">[^1]</a>: "Number of notes in the map" is counted as literally the number of note objects in the map, which is listed as "Circles" in the song stats.
+
+![](https://i.postimg.cc/28sxXcrQ/image.png)
+
+You can think of it has having a certain number of "health bars" you can gather over the course of the song. At HP 0 you have 2 full health bars available; at HP 5 you have 1.33; and at HP 10 you have 1.02. You need 0.5 at the end to pass the song.
+
+### Greens give more health than yellows at low HPs
+
+The values are actually set up so greens give more health than yellows at low HPs -- significantly more even, up to just under 3x as much at HP 0. The equation is `88/30 - 77/30 * x/5`, or a line between (0, 88/30) and (5, 11/30). This effect evens out at HP 290/77 ~ 3.766, where greens will give the same amount of health as yellows.
+
+This can be abused by intentionally getting bad accuracy to pass maps with low HPs more easily. (please don't actually do this)
+
+## Analysis
+
+Here's some various things I've tried to figure out. You can read anything if it catches your attention.
+
+For the math, here's some shared variables used for all of these:
+
+- Y is the `yellow` function above, how much health a yellow gives (before scaling by note count)
+- G is the `green` function above, how much health a green gives (before scaling by note count)
+- M is the `miss` function above, how much health a miss loses
+- N refers to the note count of the map
+
+### Greens are NOT enough to pass maps at certain HPs
+
+It turns out that at HP 5 and above, it's not possible to hit all greens and pass*. The exact number is at HP 1610/323 ~ 4.985. This number comes from solving `G >= 100`.
+
+* - depends on big notes and other things, since they give extra health. It may still be possible with enough big notes.
+
+You need a minimum ratio of 1 yellow : `(Y-100)/(100-G)` greens to pass ([solving 1/(r+1)*Y + r/(r+1)*G = 100](https://www.wolframalpha.com/input?i=solve+1%2F%28r%2B1%29*y+%2B+r%2F%28r%2B1%29*g+%3D+100+for+r)). Some values for this are given below and their corresponding accuracies. Note this ratio is inverted so you'll pretty much never going to have bad enough accuracy to run into this, unless you're trying.
+
+
+```
+| HP   | Ratio 1:G | Accuracy |
+| ---- | --------- | -------- |
+| 0.0  | -         | -        |
+| 0.5  | -         | -        |
+| 1.0  | -         | -        |
+| 1.5  | -         | -        |
+| 2.0  | -         | -        |
+| 2.5  | -         | -        |
+| 3.0  | -         | -        |
+| 3.5  | -         | -        |
+| 4.0  | -         | -        |
+| 4.5  | -         | -        |
+| 5.0  | 75.0      | 50.7     |
+| 5.5  | 30.933    | 51.6     |
+| 6.0  | 19.213    | 52.5     |
+| 6.5  | 13.786    | 53.4     |
+| 7.0  | 10.656    | 54.3     |
+| 7.5  | 8.62      | 55.2     |
+| 8.0  | 7.19      | 56.1     |
+| 8.5  | 6.129     | 57.0     |
+| 9.0  | 5.312     | 57.9     |
+| 9.5  | 4.663     | 58.8     |
+| 10.0 | 4.135     | 59.7     |
+```
+
+### How much does each judgement "cost" / how many greens are equivalent to a miss?
+You have a theoretical maximum amount of health that can be gathered throughout a map and each green/miss costs you some theoretical health. We can use this to compare how much each judgement costs relative to each other.
+
+
+- A green "deducts" `G/N-Y/N` theoretical health (health gained from a green minus the health you would've gotten from hitting a yellow)
+- A miss "deducts" `-M-Y/N` theoretical health
+
+
+T greens are worth 1 miss where `T = (-M-Y/N)/(G/N-Y/N)`. This can be refactored as a line for easier calculation `M/(Y-G) * N + Y/(Y-G)`. This equation is calculated and evaluated for certain note counts below.
+For low HPs, T will end up being negative, which means that T greens will instead negate 1 miss (i.e. hitting T greens instead of T yellows will negate 1 miss).
+
+
+```
+| HP   | T greens = 1 miss   | N = 1000 | N = 2000 |
+| ---- | ------------------- | -------- | -------- |
+| 0.0  | N/-2148.148 - 0.517 | -0.983   | -1.448   |
+| 0.5  | N/-1347.532 - 0.596 | -1.339   | -2.081   |
+| 1.0  | N/-878.169  - 0.704 | -1.843   | -2.982   |
+| 1.5  | N/-576.407  - 0.86  | -2.594   | -4.329   |
+| 2.0  | N/-370.37   - 1.103 | -3.803   | -6.503   |
+| 2.5  | N/-223.656  - 1.538 | -6.01    | -10.481  |
+| 3.0  | N/-115.925  - 2.542 | -11.169  | -19.795  |
+| 3.5  | N/-34.969   - 7.317 | -35.914  | -64.511  |
+| 4.0  | N/26.954    + 8.333 | 45.433   | 82.533   |
+| 4.5  | N/74.97     + 2.655 | 15.994   | 29.332   |
+| 5.0  | N/112.593   + 1.579 | 10.461   | 19.342   |
+| 5.5  | N/103.059   + 1.579 | 11.282   | 20.985   |
+| 6.0  | N/94.72     + 1.579 | 12.136   | 22.694   |
+| 6.5  | N/87.379    + 1.579 | 13.023   | 24.468   |
+| 7.0  | N/80.879    + 1.579 | 13.943   | 26.307   |
+| 7.5  | N/75.095    + 1.579 | 14.895   | 28.212   |
+| 8.0  | N/69.923    + 1.579 | 15.88    | 30.182   |
+| 8.5  | N/65.278    + 1.579 | 16.898   | 32.217   |
+| 9.0  | N/61.089    + 1.579 | 17.949   | 34.318   |
+| 9.5  | N/57.298    + 1.579 | 19.032   | 36.484   |
+| 10.0 | N/53.855    + 1.579 | 20.147   | 38.716   |
+```
+
+### How many greens/yellows will offset 1 miss worth of damage?
+A yellow heals `Y/N` health while a miss takes away `M` health, so the number of yellows `t` equivalent to the health from 1 miss is `Y/N * t = M`. The same goes for all greens `G/N * t = M` or some accuracy ratio of yellow:green `(r/(r+1) * Y + 1/(r+1) * G)/N * t = M`.
+
+Here's a table for N = 1000 notes of the number of notes needed at certain accuracies. For any other note count, turns out the relationship is linear so you can just multiply the table values by (your note count) / 1000.
+
+
+```
+| HP   | yellow : 1 miss | green : 1 miss | 10:1   | 20:1   |
+| ---- | --------------- | -------------- | ------ | ------ |
+| 0.0  | 0.9             | 0.307          | 0.765  | 0.824  |
+| 0.5  | 1.244           | 0.465          | 1.08   | 1.152  |
+| 1.0  | 1.617           | 0.668          | 1.432  | 1.515  |
+| 1.5  | 2.018           | 0.933          | 1.825  | 1.912  |
+| 2.0  | 2.448           | 1.284          | 2.262  | 2.347  |
+| 2.5  | 2.906           | 1.761          | 2.744  | 2.819  |
+| 3.0  | 3.393           | 2.435          | 3.276  | 3.331  |
+| 3.5  | 3.908           | 3.438          | 3.86   | 3.883  |
+| 4.0  | 4.452           | 5.059          | 4.501  | 4.478  |
+| 4.5  | 5.024           | 8.06           | 5.202  | 5.116  |
+| 5.0  | 5.625           | 15.341         | 5.969  | 5.8    |
+| 5.5  | 6.145           | 16.76          | 6.521  | 6.336  |
+| 6.0  | 6.686           | 18.236         | 7.095  | 6.894  |
+| 6.5  | 7.248           | 19.768         | 7.691  | 7.474  |
+| 7.0  | 7.831           | 21.356         | 8.309  | 8.074  |
+| 7.5  | 8.434           | 23.001         | 8.949  | 8.696  |
+| 8.0  | 9.058           | 24.703         | 9.611  | 9.339  |
+| 8.5  | 9.702           | 26.46          | 10.295 | 10.004 |
+| 9.0  | 10.367          | 28.275         | 11.001 | 10.69  |
+| 9.5  | 11.053          | 30.146         | 11.729 | 11.397 |
+| 10.0 | 11.76           | 32.073         | 12.478 | 12.126 |
+```
+
+### How many misses can you get and still pass at a given HP?
+
+(Assuming health never drops to 0. If it does then it's the same thing but with fewer notes to work with.)
+
+Here are some interesting scenarios and corresponding equations. The equations essentially assign a certain number of misses, then distribute the remaining notes across yellow and green.
+
+1. Pressing all yellows: `(1-T/N)*Y - T*M >= 100`
+2. Pressing all greens: `(1-T/N)*G - T*M >= 100`
+3. Pressing with accuracy R yellows to 1 green: `(R/(R+1)*Y + 1/(R+1)*G)*(1-T/N) - T*M >= 100`
+
+
+
+All of these equations have the form `f*(1-T/N) - T*M >= 100`. Solving these equations gives `T <= (f - 100)/(M + f/N)`.
+
+Miss count is dependent on note count and accuracy: both a longer song and better accuracy will slightly increase the possible miss count. Accuracy matters because yellows give more health; note count matters because a miss is both the penalty from the miss AND the penalty from not hitting it as a yellow: the yellow penalty part will go to 0 with increasing note count since each individual yellow will give less health. Another way to consider it: missing a lot on short maps is like playing the map with 90-95% of the notes, misses will take up proportionally less of the map the longer it is.
+
+Because of the way the equations work there's a theoretical maximum number of misses for a given HP: it's impossible to get more misses than this no matter what the map is. The theoretical maximum happens at an infinite note count and perfect accuracy (hitting all yellows, or greens at low HPs.)
+
+(Big notes of course will affect these numbers.)
+
+Here's a table of values for certain note counts and accuracy ratios. Depending on the exact note count and accuracy the values can still fluctuate a lot, especially at lower HPs, so you should recalculate it if you need to. I've made a desmos graph where you can do that: [link](https://www.desmos.com/calculator/ldojr0bsvv).
+
+
+```
+| HP  |             | N=1000                                     | 
+|     | Theoretical | All Yellow | All Green | 10:1    | 20:1    | 
+| --- | ----------- | ---------- | --------- | ------- | ------- | 
+| 0   | 2981.481    | 394.737    | 700       | 445.985 | 422.709 | 
+| 0.5 | 1940.259    | 328.618    | 615.715   | 371.316 | 351.682 | 
+| 1   | 1326.531    | 277.035    | 531.335   | 311.021 | 295.245 | 
+| 1.5 | 929.436     | 236.064    | 448.594   | 261.926 | 249.832 | 
+| 2   | 656.318     | 203.016    | 368.953   | 221.623 | 212.872 | 
+| 2.5 | 460.215     | 176        | 293.553   | 188.279 | 182.478 | 
+| 3   | 314.864     | 153.654    | 223.205   | 160.487 | 157.247 | 
+| 3.5 | 204.482     | 134.977    | 158.41    | 137.161 | 136.122 | 
+| 4   | 146.002     | 119.222    | 99.4      | 117.456 | 118.298 | 
+| 4.5 | 126.885     | 105.822    | 46.185    | 100.711 | 103.152 | 
+| 5   | 111.111     | 94.34      | -1.391    | 86.4    | 90.198  | 
+| 5.5 | 99.832      | 85.86      | -3.046    | 78.434  | 81.985  | 
+| 6   | 90.034      | 78.32      | -4.443    | 71.364  | 74.69   | 
+| 6.5 | 81.469      | 71.592     | -5.625    | 65.066  | 68.185  | 
+| 7   | 73.941      | 65.567     | -6.628    | 59.435  | 62.365  | 
+| 7.5 | 67.289      | 60.156     | -7.481    | 54.385  | 57.142  | 
+| 8   | 61.385      | 55.282     | -8.206    | 49.842  | 52.44   | 
+| 8.5 | 56.122      | 50.878     | -8.823    | 45.744  | 48.195  | 
+| 9   | 51.411      | 46.888     | -9.347    | 42.036  | 44.353  | 
+| 9.5 | 47.18       | 43.266     | -9.793    | 38.674  | 40.866  | 
+| 10  | 43.367      | 39.969     | -10.17    | 35.617  | 37.694  | 
+
+| HP  | N=2000                                     |
+|     | All Yellow | All Green | 10:1    | 20:1    |
+| --- | ---------- | --------- | ------- | ------- |
+| 0   | 535.714    | 1133.803  | 622.2   | 582.327 |
+| 0.5 | 422.818    | 934.788   | 488.845 | 458.107 |
+| 1   | 342.466    | 758.755   | 391.507 | 368.521 |
+| 1.5 | 282.935    | 605.124   | 318.248 | 301.615 |
+| 2   | 237.449    | 472.364   | 261.749 | 250.262 |
+| 2.5 | 201.835    | 358.459   | 217.298 | 209.968 |
+| 3   | 173.388    | 261.227   | 181.739 | 177.772 |
+| 3.5 | 150.286    | 178.522   | 152.889 | 151.651 |
+| 4   | 131.26     | 108.34    | 129.199 | 130.181 |
+| 4.5 | 115.4      | 48.883    | 109.541 | 112.336 |
+| 5   | 102.041    | -1.435    | 93.078  | 97.357  |
+| 5.5 | 92.32      | -3.134    | 84.02   | 87.982  |
+| 6   | 83.769     | -4.561    | 76.062  | 79.74   |
+| 6.5 | 76.212     | -5.764    | 69.037  | 72.46   |
+| 7   | 69.503     | -6.78     | 62.808  | 66.002  |
+| 7.5 | 63.523     | -7.64     | 57.263  | 60.249  |
+| 8   | 58.174     | -8.369    | 52.307  | 55.105  |
+| 8.5 | 53.371     | -8.986    | 47.863  | 50.49   |
+| 9   | 49.046     | -9.51     | 43.864  | 46.335  |
+| 9.5 | 45.138     | -9.953    | 40.255  | 42.584  |
+| 10  | 41.599     | -10.327   | 36.989  | 39.187  |
+```
+
+### How far into a map can you not play (drop to 0 health) and still pass?
+This is the same as asking "How long does it take to gather 50% health?", since you don't play for most of the map, then heal 50% at the end.
+
+`Y` (`G` at low HPs) is the maximum health achievable throughout a map, so `100/Y` gives the percentage of map necessary to gather 100 health (50% of the health bar). `1 - 100/Y` gives the percentage of map you can ignore.
+
+Again this depends on big notes, any big notes hit will let you heal more health.
+
+
+1. Pressing all yellows: `1 - 100/Y`
+2. Pressing all greens: `1 - 100/G`
+3. Pressing optimally (greens at low HP, yellows otherwise): `1 - 100/max(Y,G)`
+4. Pressing with accuracy R yellows to 1 green: `1 - 100/(R/(R+1)*Y + 1/(R+1)*G)`
+
+
+
+
+```
+| HP   | All Yellow | All Green | Optimal | 10:1  | 20:1  |
+| ---- | ---------- | --------- | ------- | ----- | ----- |
+| 0.0  | 0.75       | 0.915     | 0.915   | 0.787 | 0.771 |
+| 0.5  | 0.738      | 0.902     | 0.902   | 0.772 | 0.757 |
+| 1.0  | 0.725      | 0.886     | 0.886   | 0.756 | 0.742 |
+| 1.5  | 0.713      | 0.867     | 0.867   | 0.74  | 0.728 |
+| 2.0  | 0.7        | 0.843     | 0.843   | 0.723 | 0.712 |
+| 2.5  | 0.688      | 0.811     | 0.811   | 0.705 | 0.697 |
+| 3.0  | 0.675      | 0.767     | 0.767   | 0.686 | 0.681 |
+| 3.5  | 0.663      | 0.703     | 0.703   | 0.667 | 0.665 |
+| 4.0  | 0.65       | 0.602     | 0.65    | 0.646 | 0.648 |
+| 4.5  | 0.637      | 0.418     | 0.637   | 0.625 | 0.631 |
+| 5.0  | 0.625      | -0.023    | 0.625   | 0.602 | 0.613 |
+| 5.5  | 0.613      | -0.054    | 0.613   | 0.59  | 0.601 |
+| 6.0  | 0.602      | -0.085    | 0.602   | 0.578 | 0.59  |
+| 6.5  | 0.591      | -0.117    | 0.591   | 0.565 | 0.578 |
+| 7.0  | 0.579      | -0.148    | 0.579   | 0.553 | 0.566 |
+| 7.5  | 0.568      | -0.18     | 0.568   | 0.541 | 0.554 |
+| 8.0  | 0.556      | -0.211    | 0.556   | 0.529 | 0.542 |
+| 8.5  | 0.544      | -0.242    | 0.544   | 0.517 | 0.53  |
+| 9.0  | 0.533      | -0.274    | 0.533   | 0.504 | 0.518 |
+| 9.5  | 0.522      | -0.305    | 0.522   | 0.492 | 0.507 |
+| 10.0 | 0.51       | -0.336    | 0.51    | 0.48  | 0.495 |
+```
+
+[/box]
