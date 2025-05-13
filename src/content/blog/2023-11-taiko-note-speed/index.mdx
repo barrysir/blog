@@ -1,6 +1,6 @@
 ---
 title: "osu!taiko: Note Speed Mechanics"
-description: ""
+description: "Details on how scroll speed works in osu!taiko"
 date: "2023-11-28"
 ---
 
@@ -10,7 +10,7 @@ import Callout from "@/components/Callout.astro";
 
 Also posted on the osu! forums: [https://osu.ppy.sh/community/forums/topics/1851087](https://osu.ppy.sh/community/forums/topics/1851087)
 
-Here is a description of how scroll speed works in osu!taiko. I couldn't find this information anywhere else so I did my own research. Hopefully people will find this useful. If more information comes to me I'll do my best to keep this up to date.
+Here is a description of how scroll speed works in osu!taiko. I couldn't find this information elsewhere online so I did my own research. If you spot anything wrong with this then let me know.
 
 In case it matters: this research was done as of November 2023 on the "classic" osu! client. 
 
@@ -24,56 +24,75 @@ In the end all the pixel units cancel out, but e.g. for 1280x720 you want to mul
 Here's a reference image:
 ![Diagram marking measurements of various distances on the playfield](./measurement.png)
 
-The typical scroll speed is 245 pixels/beat. This is calculated as 175 * 1.4 from the beatmap's slider velocity setting. Most maps have their slider velocity at the default 1.4, but a small number of songs have set it differently, e.g. [Yoru Naku Usagi wa Yume o Miru](https://osu.ppy.sh/beatmapsets/58951#taiko/388464) which has a base slider velocity of 1.6 => 175 * 1.6 = 280 pixels/beat.
+* The typical scroll speed is 245 pixels/beat. This is calculated as 175 * 1.4 from the beatmap's slider velocity setting. Most maps have their slider velocity at the default 1.4, but a small number of songs have set it differently, e.g. [Yoru Naku Usagi wa Yume o Miru](https://osu.ppy.sh/beatmapsets/58951#taiko/388464) which has a base slider velocity of 1.6 => 175 * 1.6 = 280 pixels/beat. [<sup>[1]</sup>](#note-1)
+* HR applies a 1.4 multiplier and scales by aspect ratio.
+* EZ applies a 0.8 multiplier. **This is not affected by aspect ratio.**
+* Finally BPM and inherited timing points affect scroll speed.
+  * BPM is applied by multiplying by bpm/60, which converts from pixels/beat to pixels/second.
+  * Inherited timing points apply their multiplier.
 
+<figure>
 ![Picture indicating where the "slider velocity" setting is in the map editor](./slider-velocity.png)
+<figcaption><a id="note-1"></a><sup>[1]</sup> Picture indicating where the "slider velocity" setting is in the map editor</figcaption>
+</figure>
 
-HR applies a 1.4 multiplier and scales by aspect ratio to give 343 * (aspect ratio) / (4/3) pixels/beat. For 4:3 this is 343 pixels/beat (1.4x), and 16:9 this is 457 pixels/beat (1.87x).
+The receptor is 165 pixels from the left of the screen. That makes the total playfield length `600*r - 165` pixels where r is your aspect ratio.
 
-EZ applies a 0.8 multiplier. This is not affected by aspect ratio. The base scroll speed is 245 * 0.8 = 196 pixels/beat.
-
-Finally BPM and inherited timing points affect scroll speed. To convert pixels/beat to pixels/second multiply by 1 beat/second = bpm/60. Inherited timing points then apply a fixed multiplier on top of that.
-
-The distance between the left side of the screen and the receptor, at least on the default skin, is 165 pixels. That makes the total playfield length 600 * r - 165 pixels where r is your aspect ratio. (for 4:3, the playfield is 635 pixels long. For 16:9, the playfield is 901 pixels long.)
+To get the overall reaction time, divide the playfield size (pixels) by the scroll speed (pixels/second) to get the number of seconds between a note being visible and it arriving at the receptor.
 
 Here's some example code representing the calculations.
-
 
 ```python
 def playfield_width(aspect_ratio):
     return 600 * aspect_ratio - 165
 
-def scroll_rate(aspect_ratio, is_hr):
-    return 245 * ((1.4 * aspect_ratio / (4/3)) if is_hr else 1)
+def scroll_rate(aspect_ratio, mod):
+    if mod == "HR":
+        return 245 * 1.4 * aspect_ratio / (4/3)
+    elif mod == "EZ":
+        return 245 * 0.8
+    else:
+        return 245
 
-def reaction_time(aspect_ratio, is_hr, bpm, base_sv=1.4, inherited_sv=1):
-    return playfield_width(aspect_ratio) / (scroll_rate(aspect_ratio, is_hr) * bpm/60 * base_sv/1.4 * inherited_sv)
+def reaction_time(aspect_ratio, mod, bpm, base_sv=1.4, inherited_sv=1):
+    return playfield_width(aspect_ratio) / (scroll_rate(aspect_ratio, mod) * bpm/60 * base_sv/1.4 * inherited_sv)
 ```
 
+Written out as mathematical formulas, with `R` being the aspect ratio (4/3 for 4:3, 16/9 for 16:9), `B` being the BPM, and assuming the normal 1.4x base slider velocity and 1x inherited velocity:
+
+ * EZ: `B/60 * (600*R-165) / 245 * 0.8`
+ * NM: `B/60 * (600*R-165) / 245`
+ * HR: `B/60 * (600*R-165) / (1029/4 * R)`
 
 ## Analysis
 
-What's interesting is that higher aspect ratios on HR give slightly more reaction time. This is because while scroll speed scales in HR, the HUD is a fixed size, so the proportion of screen dedicated to the playfield increases, an extra factor which isn't accounted for in HR scaling.
+### HR is easier on higher aspect ratios
 
+What's interesting is that higher aspect ratios on HR give slightly more reaction time. This is because the HUD is a fixed size, so the proportion of screen dedicated to the playfield also increases, an extra factor which isn't accounted for in HR scaling.
 
-- bpm advantage factor vs. 4:3: (160 * r - 44)/(127 * r) where r is aspect ratio [1]
+- bpm advantage factor vs. 4:3: `(160 * r - 44)/(127 * r)` where `r` is aspect ratio [<sup>[2]</sup>](#note-2)
 - at 16:9 it's 1.065x (about 10-15bpm)
 - at 21:9 it's 1.11x (about 20-25bpm)
 - at 45:9 it's 1.19x
 - asymptote is at 160/127 = 1.25x
 
+However I've tried it and changing resolution won't instantly make you read faster, mainly because of having to read at a different note spacing.
 
+You can visually verify this by taking screenshots at different aspect ratios: more notes are visible at higher aspect ratios.
 
-However I've tried it and changing resolution won't make you instantly skill boost, mostly because of having to relearn HR at a different resolution.
+<figure>
+<div style="display: grid; grid-template-columns: 3fr 4fr; column-gap: 5px;">
+    <div>![4:3](./hr-4-3.png)</div>
+    <div>![16:9](./hr-16-9.png)</div>
+</div>
+<figcaption>7.5 notes are visible at 4:3, while 8 notes (and some space after) are visible at 16:9.</figcaption>
+</figure>
 
-You can visually verify this by taking screenshots at different aspect ratios. More notes are visible at higher aspect ratios.
-
-[1] - [wolfram link](https://www.wolframalpha.com/input?i=solve+%28600r-165%29%2F%28%28245*14%2F10*r%2F%284%2F3%29%29%2F60+*+y%29+%3D+%28600*%284%2F3%29-165%29%2F%28%28245*14%2F10*%284%2F3%29%2F%284%2F3%29%29%2F60+*+x%29+for+y). Basically calculating the bpms at which the reaction times on 4:3 and aspect ratio r are equal.
+<a id="note-2"></a>[2] - [wolfram link](https://www.wolframalpha.com/input?i=solve+%28600r-165%29%2F%28%28245*14%2F10*r%2F%284%2F3%29%29%2F60+*+y%29+%3D+%28600*%284%2F3%29-165%29%2F%28%28245*14%2F10*%284%2F3%29%2F%284%2F3%29%29%2F60+*+x%29+for+y). Basically calculating the bpms at which the reaction times on 4:3 and aspect ratio r are equal.
 
 ## Comparison with AR in osu!std
 
-The formula for AR in seconds is (1200 - 750 * (ar-5)/5)/1000. Below are some tables comparing certain values of BPM and AR.
-
+The formula for AR in seconds is `(1200 - 750 * (ar-5)/5)/1000`. Below are some tables comparing certain values of BPM and AR.
 
 - 200bpm HR = AR9.29 (4:3), AR9.05 (16:9)
 - 220bpm HR = AR9.63 (4:3), AR9.41 (16:9)
@@ -81,11 +100,7 @@ The formula for AR in seconds is (1200 - 750 * (ar-5)/5)/1000. Below are some ta
 - at 4:3: AR9 = 259bpm or 185bpm HR, AR10 = 345bpm or 247bpm HR
 - at 16:9: AR9 = 368bpm or 197bpm HR, AR10 = 491bpm or 262bpm HR
 
-
-
 Here is a desmos where you can play with the calculations: [link](https://www.desmos.com/calculator/yo2jx1w2z2).
-
-AR9 and AR10 are pretty fast.
 
 
 |     | 4:3    |       |        |       | 16:9     |      |        |       |
