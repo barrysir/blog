@@ -11,7 +11,7 @@ import Giscus from "@components/Giscus.astro";
 import { getPathWithBase } from "@lib/utils";
 
 export async function getStaticPaths() {
-  const posts = (await getCollection("blog"))
+  const posts = (await getCollection("posts"))
     .filter((post) => !post.data.draft)
     .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
   return posts.map((post) => ({
@@ -19,9 +19,9 @@ export async function getStaticPaths() {
     props: post,
   }));
 }
-type Props = CollectionEntry<"blog">;
+type Props = CollectionEntry<"posts">;
 
-const posts = (await getCollection("blog"))
+const posts = (await getCollection("posts"))
   .filter((post) => !post.data.draft)
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
@@ -60,7 +60,7 @@ const { Content, headings } = await render(post);
   </style>
   <Container>
     <div class="animate">
-      <BackToPrevious href={getPathWithBase("/blog")}>Back to blog</BackToPrevious>
+      <BackToPrevious href={getPathWithBase("/posts")}>Back to blog</BackToPrevious>
     </div>
     <div class="my-10 space-y-1">
       <div class="animate flex items-center gap-1.5">

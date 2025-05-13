@@ -3,11 +3,11 @@ import type { CollectionEntry } from "astro:content";
 import { getPathWithBase } from "@lib/utils";
 
 type Props = {
-  entry: CollectionEntry<"blog"> | CollectionEntry<"projects">;
+  entry: CollectionEntry<"posts"> | CollectionEntry<"projects">;
 };
 
 const { entry } = Astro.props as {
-  entry: CollectionEntry<"blog"> | CollectionEntry<"projects">;
+  entry: CollectionEntry<"posts"> | CollectionEntry<"projects">;
 };
 ---
 
