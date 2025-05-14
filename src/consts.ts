@@ -2,7 +2,7 @@ import type { Metadata, Site, Socials } from "@types";
 
 export const SITE: Site = {
   TITLE: "barry",
-  DESCRIPTION: "",
+  DESCRIPTION: "Site for siting",
   EMAIL: "",
   NUM_POSTS_ON_HOMEPAGE: 5,
   NUM_PROJECTS_ON_HOMEPAGE: 0,
@@ -10,12 +10,12 @@ export const SITE: Site = {
 
 export const HOME: Metadata = {
   TITLE: "Home",
-  DESCRIPTION: "",
+  DESCRIPTION: "Home for homing",
 };
 
 export const BLOG: Metadata = {
   TITLE: "Blog",
-  DESCRIPTION: "",
+  DESCRIPTION: "Blog for blogging",
 };
 
 export const PROJECTS: Metadata = {
