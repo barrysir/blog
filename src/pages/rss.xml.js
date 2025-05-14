@@ -1,6 +1,7 @@
 import rss from "@astrojs/rss";
 import { SITE } from "@consts";
 import { getCollection } from "astro:content";
+import { getPathWithBase } from "@lib/utils";
 
 export async function GET(context) {
   const posts = (await getCollection("posts")).filter((post) => !post.data.draft);
